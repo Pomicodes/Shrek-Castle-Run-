@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GameCanvas from './components/GameCanvas';
 import { MainMenu, GameOverScreen, HUD, RoadmapView, StorySequence } from './components/Menu';
 import { GameState, LevelData } from './types';
-import { generateLevel1 } from './services/levelService';
+import { generateLevel1, generateLevel2 } from './services/levelService';
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [score, setScore] = useState(0);
-  const [currentLevelData] = useState<LevelData>(generateLevel1());
+  const [currentLevel, setCurrentLevel] = useState(1);
+  const [currentLevelData, setCurrentLevelData] = useState<LevelData>(generateLevel1());
 
   const startStory = () => {
     setGameState(GameState.INTRO);
@@ -15,6 +16,8 @@ const App: React.FC = () => {
 
   const startGame = () => {
     setScore(0);
+    setCurrentLevel(1);
+    setCurrentLevelData(generateLevel1());
     setGameState(GameState.PLAYING);
   };
 
@@ -23,6 +26,7 @@ const App: React.FC = () => {
   };
 
   const handleVictory = () => {
+    // End the game and show victory screen after door opens
     setGameState(GameState.VICTORY);
   };
 
@@ -44,7 +48,7 @@ const App: React.FC = () => {
               setGameState={setGameState}
               gameState={gameState}
             />
-            <HUD score={score} level="1 - CASTLE GATE" />
+            <HUD score={score} level={`${currentLevel} - ${currentLevelData.name.toUpperCase()}`} />
           </>
         )}
 

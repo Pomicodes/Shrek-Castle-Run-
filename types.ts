@@ -14,7 +14,8 @@ export enum EntityType {
   HAZARD = 'HAZARD', // Lava, Fireball
   COLLECTIBLE = 'COLLECTIBLE', // Coin, Potion
   GOAL = 'GOAL', // Fiona/Door
-  DECORATION = 'DECORATION'
+  DECORATION = 'DECORATION',
+  CASTLE_GATE = 'CASTLE_GATE' // Castle gate that opens
 }
 
 export interface Position {
@@ -45,6 +46,7 @@ export interface Entity extends Position, Size {
     isMoving?: boolean;
     range?: number; // For moving platforms
     initialX?: number;
+    gateOpen?: boolean; // For castle gate animation
   };
 }
 

@@ -12,6 +12,70 @@ interface GameCanvasProps {
   gameState: GameState;
 }
 
+// Helper function to draw realistic castle tower
+const drawCastleTower = (ctx: CanvasRenderingContext2D, tower: Entity) => {
+  const x = tower.x;
+  const y = tower.y;
+  const w = tower.width;
+  const h = tower.height;
+  
+  // Tower base
+  ctx.fillStyle = '#2d3748';
+  ctx.fillRect(x, y, w, h);
+  
+  // Stone blocks on tower
+  ctx.strokeStyle = '#1a202c';
+  ctx.lineWidth = 1.5;
+  const blockSize = 15;
+  for (let row = 0; row < Math.floor(h / blockSize); row++) {
+    for (let col = 0; col < Math.floor(w / blockSize); col++) {
+      const bx = x + col * blockSize;
+      const by = y + row * blockSize;
+      ctx.strokeRect(bx, by, blockSize, blockSize);
+    }
+  }
+  
+  // Battlements (top crenellations)
+  const battlementHeight = 15;
+  const battlementWidth = 12;
+  ctx.fillStyle = '#2d3748';
+  for (let i = 0; i < Math.floor(w / battlementWidth); i++) {
+    const bx = x + i * battlementWidth;
+    ctx.fillRect(bx, y - battlementHeight, battlementWidth - 2, battlementHeight);
+  }
+  
+  // Windows
+  ctx.fillStyle = '#1a202c';
+  // Left window
+  ctx.fillRect(x + 8, y + 20, 12, 18);
+  // Right window
+  ctx.fillRect(x + w - 20, y + 20, 12, 18);
+  // Window crosses
+  ctx.strokeStyle = '#0f1419';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x + 14, y + 20);
+  ctx.lineTo(x + 14, y + 38);
+  ctx.moveTo(x + 8, y + 29);
+  ctx.lineTo(x + 20, y + 29);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + w - 14, y + 20);
+  ctx.lineTo(x + w - 14, y + 38);
+  ctx.moveTo(x + w - 20, y + 29);
+  ctx.lineTo(x + w - 8, y + 29);
+  ctx.stroke();
+  
+  // Torch/light in window
+  ctx.fillStyle = '#fbbf24';
+  ctx.beginPath();
+  ctx.arc(x + 14, y + 29, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x + w - 14, y + 29, 3, 0, Math.PI * 2);
+  ctx.fill();
+};
+
 const GameCanvas: React.FC<GameCanvasProps> = ({ levelData, onGameOver, onVictory, onScoreUpdate, setGameState, gameState }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -39,6 +103,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ levelData, onGameOver, onVictor
   // Used to prevent multiple game over triggers in the same frame sequence
   const isEndingRef = useRef(false);
   const audioRefs = useRef<{ [key: string]: HTMLAudioElement }>({});
+  const gateOpenRef = useRef(false);
+  const gateAnimationRef = useRef(0); // 0 = closed, 1 = fully open
 
   // Asset Loading
   const [playerSprite, setPlayerSprite] = useState<HTMLImageElement | null>(null);
@@ -77,6 +143,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ levelData, onGameOver, onVictor
   useEffect(() => {
     if (gameState === GameState.PLAYING) {
       isEndingRef.current = false;
+      gateOpenRef.current = false;
+      gateAnimationRef.current = 0;
       // Reset player if needed, usually managed by parent re-mounting, but here we can ensure safety
     }
   }, [gameState]);
@@ -163,6 +231,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ levelData, onGameOver, onVictor
       }
     }
 
+    // Check if player is near the gate to open it
+    const gateEntity = entitiesRef.current.find(e => e.type === EntityType.CASTLE_GATE);
+    if (gateEntity && !gateOpenRef.current) {
+      const distanceToGate = Math.abs(player.x - (gateEntity.x + gateEntity.width / 2));
+      if (distanceToGate < 150) { // Open gate when player is within 150 pixels
+        gateOpenRef.current = true;
+        playSound('victory');
+      }
+    }
+
     // Interactions
     for (let i = entitiesRef.current.length - 1; i >= 0; i--) {
       const entity = entitiesRef.current[i];
@@ -177,9 +255,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ levelData, onGameOver, onVictor
            isEndingRef.current = true;
            onGameOver();
         } else if (entity.type === EntityType.GOAL) {
-          playSound('victory');
-          isEndingRef.current = true;
-          onVictory();
+          // Only trigger if gate is mostly open
+          if (gateOpenRef.current && gateAnimationRef.current >= 0.7) {
+            playSound('victory');
+            isEndingRef.current = true;
+            onVictory();
+          }
         }
       }
     }
@@ -191,6 +272,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ levelData, onGameOver, onVictor
       onGameOver();
     }
     if (player.x < 0) player.x = 0;
+
+    // Gate opening animation
+    if (gateOpenRef.current && gateAnimationRef.current < 1) {
+      gateAnimationRef.current = Math.min(1, gateAnimationRef.current + 0.02); // Smooth opening
+    }
 
     // Camera
     const targetCameraX = player.x - CANVAS_WIDTH / 3;
@@ -222,14 +308,164 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ levelData, onGameOver, onVictor
     ctx.fillStyle = '#87ceeb';
     ctx.fillRect(cameraRef.current.x, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+    // Draw castle structure first (behind other entities)
+    const castleBase = entitiesRef.current.find(e => e.id === 'castle-base');
+    const towerLeft = entitiesRef.current.find(e => e.id === 'castle-tower-left');
+    const towerRight = entitiesRef.current.find(e => e.id === 'castle-tower-right');
+    
+    if (castleBase) {
+      // Draw realistic castle base with stone texture
+      const baseX = castleBase.x;
+      const baseY = castleBase.y;
+      const baseW = castleBase.width;
+      const baseH = castleBase.height;
+      
+      // Main base structure with stone blocks
+      ctx.fillStyle = '#4a5568';
+      ctx.fillRect(baseX, baseY, baseW, baseH);
+      
+      // Stone block pattern
+      ctx.strokeStyle = '#2d3748';
+      ctx.lineWidth = 2;
+      const blockSize = 20;
+      for (let row = 0; row < Math.floor(baseH / blockSize); row++) {
+        for (let col = 0; col < Math.floor(baseW / blockSize); col++) {
+          const x = baseX + col * blockSize;
+          const y = baseY + row * blockSize;
+          ctx.strokeRect(x, y, blockSize, blockSize);
+          // Add slight variation in color for realism
+          if ((row + col) % 2 === 0) {
+            ctx.fillStyle = '#5a6578';
+            ctx.fillRect(x + 1, y + 1, blockSize - 2, blockSize - 2);
+          }
+        }
+      }
+      
+      // Draw archway opening for gate
+      ctx.fillStyle = '#1a202c';
+      ctx.beginPath();
+      ctx.arc(baseX + baseW / 2, baseY + baseH, baseW / 3, 0, Math.PI, true);
+      ctx.fill();
+      
+      // Draw gate archway detail
+      ctx.strokeStyle = '#2d3748';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(baseX + baseW / 2, baseY + baseH, baseW / 3, 0, Math.PI, true);
+      ctx.stroke();
+    }
+    
+    if (towerLeft) {
+      drawCastleTower(ctx, towerLeft);
+    }
+    
+    if (towerRight) {
+      drawCastleTower(ctx, towerRight);
+    }
+    
     // Entities
     entitiesRef.current.forEach(entity => {
-      ctx.fillStyle = entity.color || '#888';
-      ctx.fillRect(entity.x, entity.y, entity.width, entity.height);
-      if (entity.type === EntityType.GOAL) {
-        ctx.fillStyle = '#fff';
-        ctx.font = '20px MedievalSharp';
-        ctx.fillText('FIONA!', entity.x, entity.y - 10);
+      if (entity.type === EntityType.DECORATION) {
+        // Skip - already drawn above
+      } else if (entity.type === EntityType.CASTLE_GATE) {
+        // Draw realistic castle gate with opening animation
+        const gateOpenAmount = gateAnimationRef.current;
+        const gateWidth = entity.width;
+        const gateHeight = entity.height;
+        const gateX = entity.x;
+        const gateY = entity.y;
+        
+        // Left gate panel
+        const leftPanelX = gateX - gateOpenAmount * gateWidth * 1.5;
+        ctx.fillStyle = '#5d4037'; // Dark wood
+        ctx.fillRect(leftPanelX, gateY, gateWidth / 2, gateHeight);
+        
+        // Right gate panel
+        const rightPanelX = gateX + gateWidth / 2 + gateOpenAmount * gateWidth * 1.5;
+        ctx.fillRect(rightPanelX, gateY, gateWidth / 2, gateHeight);
+        
+        // Wood grain texture and planks
+        ctx.strokeStyle = '#3e2723';
+        ctx.lineWidth = 2;
+        const plankHeight = gateHeight / 6;
+        for (let i = 0; i < 6; i++) {
+          const plankY = gateY + i * plankHeight;
+          // Left panel planks
+          ctx.strokeRect(leftPanelX, plankY, gateWidth / 2, plankHeight);
+          // Right panel planks
+          ctx.strokeRect(rightPanelX, plankY, gateWidth / 2, plankHeight);
+          
+          // Wood grain lines
+          ctx.strokeStyle = '#4e342e';
+          ctx.lineWidth = 1;
+          for (let j = 0; j < 3; j++) {
+            const grainX = leftPanelX + (gateWidth / 2 / 4) * (j + 1);
+            ctx.beginPath();
+            ctx.moveTo(grainX, plankY);
+            ctx.lineTo(grainX, plankY + plankHeight);
+            ctx.stroke();
+          }
+          for (let j = 0; j < 3; j++) {
+            const grainX = rightPanelX + (gateWidth / 2 / 4) * (j + 1);
+            ctx.beginPath();
+            ctx.moveTo(grainX, plankY);
+            ctx.lineTo(grainX, plankY + plankHeight);
+            ctx.stroke();
+          }
+          ctx.strokeStyle = '#3e2723';
+          ctx.lineWidth = 2;
+        }
+        
+        // Metal bands/straps on gate
+        ctx.fillStyle = '#424242';
+        ctx.fillRect(leftPanelX + 5, gateY + gateHeight / 3, gateWidth / 2 - 10, 8);
+        ctx.fillRect(leftPanelX + 5, gateY + gateHeight * 2 / 3, gateWidth / 2 - 10, 8);
+        ctx.fillRect(rightPanelX + 5, gateY + gateHeight / 3, gateWidth / 2 - 10, 8);
+        ctx.fillRect(rightPanelX + 5, gateY + gateHeight * 2 / 3, gateWidth / 2 - 10, 8);
+        
+        // Rivets on metal bands
+        ctx.fillStyle = '#212121';
+        for (let i = 0; i < 3; i++) {
+          const rivetX = leftPanelX + 10 + (gateWidth / 2 - 20) / 2 * i;
+          ctx.beginPath();
+          ctx.arc(rivetX, gateY + gateHeight / 3 + 4, 2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(rivetX, gateY + gateHeight * 2 / 3 + 4, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        for (let i = 0; i < 3; i++) {
+          const rivetX = rightPanelX + 10 + (gateWidth / 2 - 20) / 2 * i;
+          ctx.beginPath();
+          ctx.arc(rivetX, gateY + gateHeight / 3 + 4, 2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(rivetX, gateY + gateHeight * 2 / 3 + 4, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        
+        // Gate handle/ring (only when closed)
+        if (gateOpenAmount < 0.3) {
+          ctx.fillStyle = '#d4af37';
+          ctx.strokeStyle = '#b8941f';
+          ctx.lineWidth = 2;
+          // Left panel handle
+          ctx.beginPath();
+          ctx.arc(leftPanelX + gateWidth / 2 - 8, gateY + gateHeight / 2, 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          // Right panel handle
+          ctx.beginPath();
+          ctx.arc(rightPanelX + 8, gateY + gateHeight / 2, 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+      } else if (entity.type === EntityType.GOAL) {
+        // Goal is invisible - collision still works but no visual indicator
+        // Don't draw anything for the goal
+      } else {
+        ctx.fillStyle = entity.color || '#888';
+        ctx.fillRect(entity.x, entity.y, entity.width, entity.height);
       }
     });
 
