@@ -139,13 +139,37 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ levelData, onGameOver, onVictor
     }
   }, []);
 
+  // Reset logic when levelData changes (level transitions)
+  useEffect(() => {
+    // Update entities when levelData changes
+    entitiesRef.current = JSON.parse(JSON.stringify(levelData.entities));
+    
+    // Reset player position to level start position
+    playerRef.current.x = levelData.startPos.x;
+    playerRef.current.y = levelData.startPos.y;
+    if (playerRef.current.velocity) {
+      playerRef.current.velocity.vx = 0;
+      playerRef.current.velocity.vy = 0;
+    }
+    
+    // Reset camera
+    cameraRef.current.x = 0;
+    
+    // Reset gate state
+    gateOpenRef.current = false;
+    gateAnimationRef.current = 0;
+    
+    // Reset ending state
+    isEndingRef.current = false;
+    isGroundedRef.current = false;
+  }, [levelData.id]); // Watch levelData.id to detect level changes
+
   // Reset logic when game starts
   useEffect(() => {
     if (gameState === GameState.PLAYING) {
       isEndingRef.current = false;
       gateOpenRef.current = false;
       gateAnimationRef.current = 0;
-      // Reset player if needed, usually managed by parent re-mounting, but here we can ensure safety
     }
   }, [gameState]);
 
@@ -184,14 +208,87 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ levelData, onGameOver, onVictor
     const player = playerRef.current;
     if (!player.velocity) return;
 
+    // Handle falling walls (inside castle, Level 2)
+    entitiesRef.current.forEach(entity => {
+      if (entity.type === EntityType.HAZARD && entity.properties?.isFalling) {
+        // Trigger falling when player is horizontally close
+        if (!entity.properties.hasStarted) {
+          const triggerDistance = 120;
+          const centerX = entity.x + entity.width / 2;
+          const distanceX = Math.abs(player.x + player.width / 2 - centerX);
+          if (distanceX < triggerDistance) {
+            entity.properties.hasStarted = true;
+            entity.velocity = { vx: 0, vy: 2 };
+          }
+        }
+
+        // Apply falling movement
+        if (entity.properties.hasStarted && entity.velocity) {
+          entity.velocity.vy += GRAVITY * 0.4; // Slight gravity
+          entity.y += entity.velocity.vy;
+
+          const floorY = CANVAS_HEIGHT - 60;
+          // When wall hits the floor, turn it into a static platform to jump over
+          if (entity.y + entity.height >= floorY) {
+            entity.y = floorY - entity.height;
+            entity.type = EntityType.PLATFORM;
+            entity.isStatic = true;
+            entity.velocity = undefined;
+            if (entity.properties) {
+              entity.properties.isFalling = false;
+              entity.properties.hasStarted = false;
+              // Remove damage so it's no longer deadly once on the floor
+              entity.properties.damage = 0;
+            }
+          }
+        }
+      }
+    });
+
+    // Handle fireballs - moving hazards that bounce back and forth
+    entitiesRef.current.forEach(entity => {
+      if (entity.type === EntityType.HAZARD && entity.properties?.isFireball) {
+        // Initialize velocity if not set
+        if (!entity.velocity) {
+          const speed = entity.properties.speed || 3;
+          const direction = entity.properties.direction || 1;
+          entity.velocity = { vx: speed * direction, vy: 0 };
+          // Store initial position if not already stored
+          if (entity.properties.initialX === undefined) {
+            entity.properties.initialX = entity.x;
+          }
+        }
+        
+        // Move fireball
+        entity.x += entity.velocity.vx;
+        
+        // Bounce fireball when it reaches its range limits
+        const initialX = entity.properties.initialX || entity.x;
+        const range = 200; // Fireball moves 200 pixels in each direction
+        const speed = Math.abs(entity.properties.speed || 3);
+        
+        if (entity.x >= initialX + range) {
+          entity.velocity.vx = -speed;
+          entity.properties.direction = -1;
+        } else if (entity.x <= initialX - range) {
+          entity.velocity.vx = speed;
+          entity.properties.direction = 1;
+        }
+      }
+    });
+
+    const isLevel2 = levelData.id === 2;
+
     // Physics
     player.velocity.vy += GRAVITY;
     if (player.velocity.vy > MAX_FALL_SPEED) player.velocity.vy = MAX_FALL_SPEED;
 
+    const moveSpeed = isLevel2 ? MOVE_SPEED * 1.3 : MOVE_SPEED;
+
     if (keysRef.current['ArrowRight'] || keysRef.current['KeyD']) {
-      player.velocity.vx = MOVE_SPEED;
+      player.velocity.vx = moveSpeed;
     } else if (keysRef.current['ArrowLeft'] || keysRef.current['KeyA']) {
-      player.velocity.vx = -MOVE_SPEED;
+      player.velocity.vx = -moveSpeed;
     } else {
       player.velocity.vx *= FRICTION;
     }
@@ -231,13 +328,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ levelData, onGameOver, onVictor
       }
     }
 
-    // Check if player is near the gate to open it
-    const gateEntity = entitiesRef.current.find(e => e.type === EntityType.CASTLE_GATE);
-    if (gateEntity && !gateOpenRef.current) {
-      const distanceToGate = Math.abs(player.x - (gateEntity.x + gateEntity.width / 2));
-      if (distanceToGate < 150) { // Open gate when player is within 150 pixels
-        gateOpenRef.current = true;
-        playSound('victory');
+    // Check if player is near the outer gate (Level 1 only) to open it
+    if (!isLevel2) {
+      const gateEntity = entitiesRef.current.find(e => e.type === EntityType.CASTLE_GATE);
+      if (gateEntity && !gateOpenRef.current) {
+        const distanceToGate = Math.abs(player.x - (gateEntity.x + gateEntity.width / 2));
+        if (distanceToGate < 150) { // Open gate when player is within 150 pixels
+          gateOpenRef.current = true;
+          playSound('victory');
+        }
       }
     }
 
@@ -255,11 +354,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ levelData, onGameOver, onVictor
            isEndingRef.current = true;
            onGameOver();
         } else if (entity.type === EntityType.GOAL) {
-          // Only trigger if gate is mostly open
-          if (gateOpenRef.current && gateAnimationRef.current >= 0.7) {
+          if (isLevel2) {
+            // Level 2: reaching the first step of the ladder completes the level
             playSound('victory');
             isEndingRef.current = true;
             onVictory();
+          } else {
+            // Level 1: Only trigger if castle gate is mostly open
+            if (gateOpenRef.current && gateAnimationRef.current >= 0.7) {
+              playSound('victory');
+              isEndingRef.current = true;
+              onVictory();
+            }
           }
         }
       }
@@ -292,7 +398,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ levelData, onGameOver, onVictor
        setCurrentTutorial(activeTutorial);
     }
 
-  }, [gameState, levelData.width, levelData.tutorialZones, currentTutorial, onGameOver, onScoreUpdate, onVictory, playSound]);
+  }, [gameState, levelData.id, levelData.width, levelData.tutorialZones, currentTutorial, onGameOver, onScoreUpdate, onVictory, playSound]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -305,10 +411,23 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ levelData, onGameOver, onVictor
     ctx.translate(-cameraRef.current.x, 0);
 
     // Background
-    ctx.fillStyle = '#87ceeb';
+    if (levelData.id === 2) {
+      // Warm interior castle tones
+      const gradient = ctx.createLinearGradient(
+        cameraRef.current.x, 0,
+        cameraRef.current.x, CANVAS_HEIGHT
+      );
+      gradient.addColorStop(0, '#431407');   // dark warm ceiling
+      gradient.addColorStop(0.4, '#7c2d12'); // warm walls
+      gradient.addColorStop(1, '#1c1917');   // dark floor
+      ctx.fillStyle = gradient;
+    } else {
+      // Outside sky for Level 1
+      ctx.fillStyle = '#87ceeb';
+    }
     ctx.fillRect(cameraRef.current.x, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Draw castle structure first (behind other entities)
+    // Draw castle structure first (behind other entities) - only relevant for Level 1 exterior
     const castleBase = entitiesRef.current.find(e => e.id === 'castle-base');
     const towerLeft = entitiesRef.current.find(e => e.id === 'castle-tower-left');
     const towerRight = entitiesRef.current.find(e => e.id === 'castle-tower-right');
@@ -461,8 +580,56 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ levelData, onGameOver, onVictor
           ctx.stroke();
         }
       } else if (entity.type === EntityType.GOAL) {
-        // Goal is invisible - collision still works but no visual indicator
-        // Don't draw anything for the goal
+        if (levelData.id === 2) {
+          // Draw stairs to Fiona's room for Level 2
+          const stairsX = entity.x;
+          const stairsBaseY = entity.y + entity.height;
+          const stairsHeight = 200;
+          const stepWidth = 50;
+          const stepHeight = 20;
+          const stepCount = 10;
+
+          // Draw each step going upward
+          ctx.fillStyle = '#78350f'; // Brown wood/stone
+          for (let i = 0; i < stepCount; i++) {
+            const stepX = stairsX + (stepWidth * i);
+            const stepY = stairsBaseY - (stepHeight * (i + 1));
+            ctx.fillRect(stepX, stepY, stepWidth, stepHeight);
+            
+            // Add step edge/highlight
+            ctx.fillStyle = '#92400e';
+            ctx.fillRect(stepX, stepY, stepWidth, 3);
+            ctx.fillStyle = '#78350f';
+          }
+        }
+        // Level 1 goal remains invisible (no drawing) so player just passes through gate
+      } else if (entity.type === EntityType.HAZARD && entity.properties?.isFireball) {
+        // Draw fireball with glow effect
+        const fbX = entity.x + entity.width / 2;
+        const fbY = entity.y + entity.height / 2;
+        const radius = entity.width / 2;
+        
+        // Outer glow
+        const gradient = ctx.createRadialGradient(fbX, fbY, 0, fbX, fbY, radius * 2);
+        gradient.addColorStop(0, '#ffaa00');
+        gradient.addColorStop(0.5, '#ff6b00');
+        gradient.addColorStop(1, 'rgba(255, 107, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(fbX, fbY, radius * 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Core fireball
+        ctx.fillStyle = '#ffaa00';
+        ctx.beginPath();
+        ctx.arc(fbX, fbY, radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Inner bright core
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(fbX - radius * 0.3, fbY - radius * 0.3, radius * 0.4, 0, Math.PI * 2);
+        ctx.fill();
       } else {
         ctx.fillStyle = entity.color || '#888';
         ctx.fillRect(entity.x, entity.y, entity.width, entity.height);
@@ -479,7 +646,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ levelData, onGameOver, onVictor
       ctx.fillRect(player.x, player.y, player.width, player.height);
     }
     ctx.restore();
-  }, [playerSprite]);
+  }, [playerSprite, levelData.id]);
 
   const tick = useCallback(() => {
     update();

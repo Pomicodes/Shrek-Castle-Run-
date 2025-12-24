@@ -237,22 +237,24 @@ const TaskCard: React.FC<{week: string, title: string, tasks: string[]}> = ({ we
   </div>
 );
 
-export const GameOverScreen: React.FC<{ onRestart: () => void; onBackToMenu: () => void; isVictory: boolean; score: number }> = ({ onRestart, onBackToMenu, isVictory, score }) => (
+export const GameOverScreen: React.FC<{ onRestart: () => void; onBackToMenu: () => void; isVictory: boolean; score: number; level: number }> = ({ onRestart, onBackToMenu, isVictory, score, level }) => (
   <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/80 animate-fade-in">
      <div className={`p-10 rounded-xl text-center border-8 ${isVictory ? 'border-yellow-400 bg-stone-800' : 'border-red-800 bg-stone-900'} shadow-2xl`}>
         <h2 className={`text-6xl font-bold mb-4 ${isVictory ? 'text-yellow-400' : 'text-red-600'} drop-shadow-lg`}>
-          {isVictory ? 'FIONA RESCUED!' : 'GAME OVER'}
+          {isVictory ? (level === 2 ? 'LEVEL 2 COMPLETED!' : 'LEVEL COMPLETED!') : 'GAME OVER'}
         </h2>
         <p className="text-white text-3xl mb-6">Final Score: {score}</p>
         <p className="text-stone-400 italic mb-8 text-xl">
-          {isVictory ? "Donkey: \"I told you so!\"" : "The Dragon got you..."}
+          {isVictory 
+            ? (level === 2 ? "Donkey: \"Almost there Shrek!\"" : "Donkey: \"Half way done, you did it!\"") 
+            : "The Dragon got you..."}
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <button 
             onClick={onRestart}
             className="px-8 py-3 text-xl font-bold bg-white text-black rounded hover:bg-gray-200 transition-transform hover:scale-105"
           >
-            {isVictory ? 'Play Again' : 'Try Again'}
+            {isVictory ? 'Next Level' : 'Try Again'}
           </button>
           {!isVictory && (
             <button

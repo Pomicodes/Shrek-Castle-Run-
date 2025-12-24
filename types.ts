@@ -47,6 +47,11 @@ export interface Entity extends Position, Size {
     range?: number; // For moving platforms
     initialX?: number;
     gateOpen?: boolean; // For castle gate animation
+    isFalling?: boolean; // For falling walls
+    hasStarted?: boolean; // For triggered movement (like falling walls)
+    isFireball?: boolean; // For fireball projectiles
+    direction?: number; // For fireballs: 1 = right, -1 = left
+    speed?: number; // For fireballs movement speed
   };
 }
 

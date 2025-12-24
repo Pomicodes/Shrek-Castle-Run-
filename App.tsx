@@ -26,8 +26,31 @@ const App: React.FC = () => {
   };
 
   const handleVictory = () => {
-    // End the game and show victory screen after door opens
+    // Show victory screen for the current level
     setGameState(GameState.VICTORY);
+  };
+
+  const restartLevel2 = () => {
+    setScore(0);
+    setCurrentLevel(2);
+    setCurrentLevelData(generateLevel2());
+    setGameState(GameState.PLAYING);
+  };
+
+  const handleNextLevel = () => {
+    if (currentLevel === 1) {
+      // Move from Level 1 (outside) into Level 2 (inside castle)
+      setScore(0);
+      setCurrentLevel(2);
+      setCurrentLevelData(generateLevel2());
+      setGameState(GameState.PLAYING);
+    } else {
+      // After Level 2, loop back to Level 1 for now
+      setScore(0);
+      setCurrentLevel(1);
+      setCurrentLevelData(generateLevel1());
+      setGameState(GameState.PLAYING);
+    }
   };
 
   return (
@@ -70,13 +93,20 @@ const App: React.FC = () => {
 
         {(gameState === GameState.GAME_OVER || gameState === GameState.VICTORY) && (
           <GameOverScreen 
-            onRestart={startGame}
+            onRestart={
+              gameState === GameState.VICTORY
+                ? handleNextLevel
+                : currentLevel === 2
+                  ? restartLevel2
+                  : startGame
+            }
             onBackToMenu={() => {
               setScore(0);
               setGameState(GameState.MENU);
             }}
             isVictory={gameState === GameState.VICTORY}
             score={score}
+            level={currentLevel}
           />
         )}
 
