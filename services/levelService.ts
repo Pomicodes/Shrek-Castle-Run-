@@ -32,11 +32,12 @@ export const generateLevel1 = (): LevelData => {
     { id: 'castle-tower-left', type: EntityType.DECORATION, x: 1820, y: floorY - 350, width: 60, height: 150, isStatic: true, color: '#2d3748' },
     { id: 'castle-tower-right', type: EntityType.DECORATION, x: 1920, y: floorY - 350, width: 60, height: 150, isStatic: true, color: '#2d3748' },
     
-    // Castle Gate (will animate open)
-    { id: 'castle-gate', type: EntityType.CASTLE_GATE, x: 1880, y: floorY - 80, width: 40, height: 140, isStatic: true, color: '#78350f', properties: { gateOpen: false } },
+    // Castle Gate (will animate open) - proportional to castle base (200px wide)
+    // Gate is 100px wide (50% of castle base width), centered, and ends at floor level
+    { id: 'castle-gate', type: EntityType.CASTLE_GATE, x: 1850, y: floorY - 100, width: 100, height: 100, isStatic: true, color: '#78350f', properties: { gateOpen: false } },
     
-    // Goal (inside the gate)
-    { id: 'goal', type: EntityType.GOAL, x: 1900, y: floorY - 80, width: 60, height: 140, isStatic: true, color: '#ec4899' } // Fiona's Tower Entrance
+    // Goal (inside the gate) - centered and proportional, ends at floor level
+    { id: 'goal', type: EntityType.GOAL, x: 1900, y: floorY - 100, width: 80, height: 100, isStatic: true, color: '#ec4899' } // Fiona's Tower Entrance
   ];
 
   return {
@@ -68,15 +69,11 @@ export const generateLevel2 = (): LevelData => {
     { id: 'floor-4', type: EntityType.PLATFORM, x: 2300, y: floorY, width: 400, height: 60, isStatic: true, color: '#7c2d12' },
     { id: 'floor-5', type: EntityType.PLATFORM, x: 2800, y: floorY, width: 300, height: 60, isStatic: true, color: '#7c2d12' },
 
-    // Lava pools the player must jump over
-    { id: 'lava-1', type: EntityType.HAZARD, x: 650, y: CANVAS_HEIGHT - 20, width: 180, height: 20, isStatic: true, color: '#ef4444', properties: { damage: 1 } },
-    { id: 'lava-2', type: EntityType.HAZARD, x: 1400, y: CANVAS_HEIGHT - 20, width: 220, height: 20, isStatic: true, color: '#ef4444', properties: { damage: 1 } },
-
-    // Platforms over lava
-    { id: 'plat-lava-1', type: EntityType.PLATFORM, x: 680, y: floorY - 140, width: 80, height: 20, isStatic: true, color: '#92400e' },
-    { id: 'plat-lava-2', type: EntityType.PLATFORM, x: 780, y: floorY - 230, width: 80, height: 20, isStatic: true, color: '#92400e' },
-    { id: 'plat-lava-3', type: EntityType.PLATFORM, x: 1430, y: floorY - 120, width: 90, height: 20, isStatic: true, color: '#92400e' },
-    { id: 'plat-lava-4', type: EntityType.PLATFORM, x: 1560, y: floorY - 210, width: 90, height: 20, isStatic: true, color: '#92400e' },
+    // Platforms for navigation
+    { id: 'plat-1', type: EntityType.PLATFORM, x: 680, y: floorY - 140, width: 80, height: 20, isStatic: true, color: '#92400e' },
+    { id: 'plat-2', type: EntityType.PLATFORM, x: 780, y: floorY - 230, width: 80, height: 20, isStatic: true, color: '#92400e' },
+    { id: 'plat-3', type: EntityType.PLATFORM, x: 1430, y: floorY - 120, width: 90, height: 20, isStatic: true, color: '#92400e' },
+    { id: 'plat-4', type: EntityType.PLATFORM, x: 1560, y: floorY - 210, width: 90, height: 20, isStatic: true, color: '#92400e' },
 
     // Fireballs - moving hazards
     { 
@@ -141,16 +138,16 @@ export const generateLevel2 = (): LevelData => {
   return {
     id: 2,
     name: 'Inside the Castle',
-    description: 'Lava Halls',
+    description: 'Castle Halls',
     width: 3200,
     height: CANVAS_HEIGHT,
     startPos: { x: 50, y: floorY - 100 },
     entities,
     tutorialZones: [
       { xStart: 0, xEnd: 250, text: "You are INSIDE the castle now!" },
-      { xStart: 260, xEnd: 800, text: "Warm torchlight and deadly LAVA ahead." },
-      { xStart: 850, xEnd: 1500, text: "Use platforms to navigate over lava!" },
-      { xStart: 1550, xEnd: 2150, text: "Jump carefully over lava pools!" },
+      { xStart: 260, xEnd: 800, text: "Warm torchlight ahead." },
+      { xStart: 850, xEnd: 1500, text: "Use platforms to navigate!" },
+      { xStart: 1550, xEnd: 2150, text: "Jump carefully between platforms!" },
       { xStart: 2200, xEnd: 2800, text: "Watch out for FIREBALLS! They move!" },
       { xStart: 2850, xEnd: 3100, text: "Reach the STAIRS to Fiona's room!" }
     ]

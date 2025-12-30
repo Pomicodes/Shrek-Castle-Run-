@@ -189,7 +189,7 @@ export const LevelsView: React.FC<{ onBack: () => void; onSelectLevel: (level: n
         <LevelCard 
           level={2}
           name="Inside the Castle"
-          description="Lava Halls"
+          description="Castle Halls"
           onSelect={() => onSelectLevel(2)}
         />
         <LevelCard 
