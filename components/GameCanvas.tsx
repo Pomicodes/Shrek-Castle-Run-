@@ -421,6 +421,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ levelData, onGameOver, onVictor
       gradient.addColorStop(0.4, '#7c2d12'); // warm walls
       gradient.addColorStop(1, '#1c1917');   // dark floor
       ctx.fillStyle = gradient;
+    } else if (levelData.id === 3) {
+      // Dark, stressful Dragon's Lair - almost black with subtle red hints
+      const gradient = ctx.createLinearGradient(
+        cameraRef.current.x, 0,
+        cameraRef.current.x, CANVAS_HEIGHT
+      );
+      gradient.addColorStop(0, '#000000');   // pure black ceiling
+      gradient.addColorStop(0.3, '#0a0000'); // very dark with red hint
+      gradient.addColorStop(0.6, '#1a0000'); // slightly lighter dark
+      gradient.addColorStop(1, '#000000');   // pure black floor
+      ctx.fillStyle = gradient;
     } else {
       // Outside sky for Level 1
       ctx.fillStyle = '#87ceeb';

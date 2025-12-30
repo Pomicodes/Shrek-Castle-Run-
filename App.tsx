@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import GameCanvas from './components/GameCanvas';
-import { MainMenu, GameOverScreen, HUD, RoadmapView, StorySequence } from './components/Menu';
+import { MainMenu, GameOverScreen, HUD, LevelsView, StorySequence } from './components/Menu';
 import { GameState, LevelData } from './types';
-import { generateLevel1, generateLevel2 } from './services/levelService';
+import { generateLevel1, generateLevel2, generateLevel3 } from './services/levelService';
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
@@ -44,12 +44,15 @@ const App: React.FC = () => {
       setCurrentLevel(2);
       setCurrentLevelData(generateLevel2());
       setGameState(GameState.PLAYING);
-    } else {
-      // After Level 2, loop back to Level 1 for now
+    } else if (currentLevel === 2) {
+      // Move from Level 2 (inside castle) into Level 3 (Dragon's Lair)
       setScore(0);
-      setCurrentLevel(1);
-      setCurrentLevelData(generateLevel1());
+      setCurrentLevel(3);
+      setCurrentLevelData(generateLevel3());
       setGameState(GameState.PLAYING);
+    } else {
+      // After Level 3, show victory and return to menu
+      setGameState(GameState.MENU);
     }
   };
 
@@ -79,7 +82,7 @@ const App: React.FC = () => {
         {gameState === GameState.MENU && (
           <MainMenu 
             onStart={startStory} 
-            onShowRoadmap={() => setGameState(GameState.ROADMAP)} 
+            onShowLevels={() => setGameState(GameState.LEVELS)} 
           />
         )}
 
@@ -87,8 +90,20 @@ const App: React.FC = () => {
           <StorySequence onComplete={startGame} />
         )}
 
-        {gameState === GameState.ROADMAP && (
-          <RoadmapView onBack={() => setGameState(GameState.MENU)} />
+        {gameState === GameState.LEVELS && (
+          <LevelsView 
+            onBack={() => setGameState(GameState.MENU)} 
+            onSelectLevel={(level) => {
+              setCurrentLevel(level);
+              setCurrentLevelData(
+                level === 1 ? generateLevel1() : 
+                level === 2 ? generateLevel2() : 
+                generateLevel3()
+              );
+              setScore(0);
+              setGameState(GameState.PLAYING);
+            }}
+          />
         )}
 
         {(gameState === GameState.GAME_OVER || gameState === GameState.VICTORY) && (
@@ -98,6 +113,13 @@ const App: React.FC = () => {
                 ? handleNextLevel
                 : currentLevel === 2
                   ? restartLevel2
+                  : currentLevel === 3
+                    ? () => {
+                        setScore(0);
+                        setCurrentLevel(3);
+                        setCurrentLevelData(generateLevel3());
+                        setGameState(GameState.PLAYING);
+                      }
                   : startGame
             }
             onBackToMenu={() => {

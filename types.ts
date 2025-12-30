@@ -5,7 +5,7 @@ export enum GameState {
   PAUSED = 'PAUSED',
   GAME_OVER = 'GAME_OVER',
   VICTORY = 'VICTORY',
-  ROADMAP = 'ROADMAP'
+  LEVELS = 'LEVELS'
 }
 
 export enum EntityType {

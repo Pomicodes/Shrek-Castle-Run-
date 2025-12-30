@@ -4,10 +4,10 @@ import { COLORS } from '../constants';
 
 interface MenuProps {
   onStart: () => void;
-  onShowRoadmap: () => void;
+  onShowLevels: () => void;
 }
 
-export const MainMenu: React.FC<MenuProps> = ({ onStart, onShowRoadmap }) => (
+export const MainMenu: React.FC<MenuProps> = ({ onStart, onShowLevels }) => (
   <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-cover bg-center overflow-hidden" 
        style={{ 
          backgroundColor: COLORS.UI_BG,
@@ -32,10 +32,10 @@ export const MainMenu: React.FC<MenuProps> = ({ onStart, onShowRoadmap }) => (
         </button>
         
         <button 
-          onClick={onShowRoadmap}
+          onClick={onShowLevels}
           className="w-full py-3 text-xl font-bold text-stone-200 bg-stone-700 rounded-lg hover:bg-stone-600 border-2 border-stone-500"
         >
-          PROJECT ROADMAP
+          LEVELS
         </button>
       </div>
 
@@ -171,69 +171,51 @@ export const StorySequence: React.FC<{ onComplete: () => void }> = ({ onComplete
   );
 };
 
-export const RoadmapView: React.FC<{ onBack: () => void }> = ({ onBack }) => (
+export const LevelsView: React.FC<{ onBack: () => void; onSelectLevel: (level: number) => void }> = ({ onBack, onSelectLevel }) => (
   <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-stone-900 text-white p-8">
     <div className="max-w-4xl w-full h-full overflow-y-auto pr-4">
       <div className="flex justify-between items-center mb-6 border-b border-stone-600 pb-4">
-        <h2 className="text-4xl font-bold text-yellow-500">Weekly Development Tasks</h2>
+        <h2 className="text-4xl font-bold text-yellow-500">Select Level</h2>
         <button onClick={onBack} className="text-stone-400 hover:text-white underline">Back to Menu</button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <TaskCard 
-          week="Week 1" 
-          title="Core Physics & Movement" 
-          tasks={[
-            "Implement basic AABB collision detection",
-            "Fine-tune gravity, friction, and jump height for 'heavy' feel",
-            "Set up basic Camera follow logic",
-            "Create 'Training Stage' geometry (Level 1)"
-          ]} 
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <LevelCard 
+          level={1}
+          name="The Castle Gate"
+          description="Training Stage"
+          onSelect={() => onSelectLevel(1)}
         />
-        <TaskCard 
-          week="Week 2"  
-          title="Assets & Environment" 
-          tasks={[
-            "Replace colored rectangles with sprite sheets",
-            "Implement parallax scrolling backgrounds",
-            "Add 'Moving Platform' logic",
-            "Add animated decorative elements (torches, flags)"
-          ]} 
+        <LevelCard 
+          level={2}
+          name="Inside the Castle"
+          description="Lava Halls"
+          onSelect={() => onSelectLevel(2)}
         />
-        <TaskCard 
-          week="Week 3" 
-          title="Hazards & Logic" 
-          tasks={[
-            "Implement 'Fireball' projectile logic",
-            "Create 'Lava' damage zones with particle effects",
-            "Build 'Falling Floor' mechanics for Level 2",
-            "Add health/lives system with UI hearts"
-          ]} 
-        />
-        <TaskCard 
-          week="Week 4" 
-          title="Game Loop & Polish" 
-          tasks={[
-            "Implement Level transition system",
-            "Add Sound Manager (BGM, SFX)",
-            "Build Dragon AI (Boss Stage)",
-            "Create Save/Load system for high scores"
-          ]} 
+        <LevelCard 
+          level={3}
+          name="Dragon's Lair"
+          description="Final Boss"
+          onSelect={() => onSelectLevel(3)}
         />
       </div>
     </div>
   </div>
 );
 
-const TaskCard: React.FC<{week: string, title: string, tasks: string[]}> = ({ week, title, tasks }) => (
-  <div className="bg-stone-800 p-6 rounded-lg border border-stone-600 shadow-md">
+const LevelCard: React.FC<{level: number, name: string, description: string, onSelect: () => void}> = ({ level, name, description, onSelect }) => (
+  <div className="bg-stone-800 p-6 rounded-lg border border-stone-600 shadow-md hover:border-yellow-500 transition-all cursor-pointer" onClick={onSelect}>
     <div className="flex justify-between items-baseline mb-3">
-      <h3 className="text-xl font-bold text-green-500">{week}</h3>
-      <span className="text-stone-400 text-sm italic">{title}</span>
+      <h3 className="text-2xl font-bold text-yellow-500">Level {level}</h3>
+      <span className="text-stone-400 text-sm italic">{description}</span>
     </div>
-    <ul className="list-disc list-inside space-y-2 text-stone-300">
-      {tasks.map((t, i) => <li key={i}>{t}</li>)}
-    </ul>
+    <h4 className="text-xl font-semibold text-green-400 mb-4">{name}</h4>
+    <button 
+      onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      className="w-full py-2 text-lg font-bold text-white bg-green-700 rounded hover:bg-green-600 border-2 border-green-800 transition-transform hover:scale-105"
+    >
+      Play Level {level}
+    </button>
   </div>
 );
 
@@ -241,12 +223,22 @@ export const GameOverScreen: React.FC<{ onRestart: () => void; onBackToMenu: () 
   <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/80 animate-fade-in">
      <div className={`p-10 rounded-xl text-center border-8 ${isVictory ? 'border-yellow-400 bg-stone-800' : 'border-red-800 bg-stone-900'} shadow-2xl`}>
         <h2 className={`text-6xl font-bold mb-4 ${isVictory ? 'text-yellow-400' : 'text-red-600'} drop-shadow-lg`}>
-          {isVictory ? (level === 2 ? 'LEVEL 2 COMPLETED!' : 'LEVEL COMPLETED!') : 'GAME OVER'}
+          {isVictory 
+            ? (level === 3 
+                ? 'VICTORY! FIONA RESCUED!' 
+                : level === 2 
+                  ? 'LEVEL 2 COMPLETED!' 
+                  : 'LEVEL COMPLETED!') 
+            : 'GAME OVER'}
         </h2>
         <p className="text-white text-3xl mb-6">Final Score: {score}</p>
         <p className="text-stone-400 italic mb-8 text-xl">
           {isVictory 
-            ? (level === 2 ? "Donkey: \"Almost there Shrek!\"" : "Donkey: \"Half way done, you did it!\"") 
+            ? (level === 3 
+                ? "Donkey: \"You did it Shrek! Fiona is free!\"" 
+                : level === 2 
+                  ? "Donkey: \"Almost there Shrek!\"" 
+                  : "Donkey: \"Half way done, you did it!\"") 
             : "The Dragon got you..."}
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
