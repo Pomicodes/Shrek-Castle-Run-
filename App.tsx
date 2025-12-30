@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import GameCanvas from './components/GameCanvas';
-import { MainMenu, GameOverScreen, HUD, LevelsView, StorySequence } from './components/Menu';
+import React, { useState } from 'react';
+import { GameCanvas, MainMenu, GameOverScreen, HUD, LevelsView, StorySequence } from './components';
 import { GameState, LevelData } from './types';
-import { generateLevel1, generateLevel2, generateLevel3 } from './services/levelService';
+import { generateLevel1, generateLevel2, generateLevel3 } from './services';
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
