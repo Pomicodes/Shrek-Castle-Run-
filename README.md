@@ -9,3 +9,7 @@ A fun 2D browser-based platformer game where a friendly green ogre sets out to r
 1. Install dependencies: `npm install`
 2. (Optional) Set the `POmi_API_KEY` in `.env.local` if you use external APIs
 3. Run the app: `npm run dev`
+
+
+https://github.com/user-attachments/assets/a0b6f344-2c03-4804-80ad-13cab508d631
+
